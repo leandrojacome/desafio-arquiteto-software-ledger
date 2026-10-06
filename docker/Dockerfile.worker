@@ -1,0 +1,36 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:e70cdb7f80b0348f5cb85f19a8f670fca061f033d57eed12fa003d58b0e06317 AS build
+WORKDIR /src
+
+ENV DOTNET_NOLOGO=true \
+    DOTNET_CLI_TELEMETRY_OPTOUT=true \
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE=true
+
+COPY Directory.Build.props Directory.Packages.props global.json* nuget.config* .editorconfig* BannedSymbols.txt* ./
+COPY src/Ledger.Domain/Ledger.Domain.csproj src/Ledger.Domain/
+COPY src/Ledger.Application/Ledger.Application.csproj src/Ledger.Application/
+COPY src/Ledger.Infrastructure/Ledger.Infrastructure.csproj src/Ledger.Infrastructure/
+COPY src/Ledger.Worker/Ledger.Worker.csproj src/Ledger.Worker/
+RUN dotnet restore src/Ledger.Worker/Ledger.Worker.csproj
+
+COPY src/ src/
+RUN dotnet build src/Ledger.Worker/Ledger.Worker.csproj -c Release --no-restore -warnaserror
+RUN dotnet publish src/Ledger.Worker/Ledger.Worker.csproj -c Release --no-build -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:222759b391a1aaf241166672c8f99b2d4ada452e7b5319f3c6e8f265a37b5ad4 AS runtime
+WORKDIR /app
+
+ENV ASPNETCORE_HTTP_PORTS=8081 \
+    DOTNET_RUNNING_IN_CONTAINER=true \
+    DOTNET_EnableDiagnostics=0 \
+    DOTNET_gcServer=0
+
+COPY --from=build /app/publish ./
+COPY --chmod=0755 docker/healthcheck.sh /usr/local/bin/healthcheck
+
+USER $APP_UID
+EXPOSE 8081
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=3 \
+    CMD ["/usr/local/bin/healthcheck", "8081", "/health/ready"]
+
+ENTRYPOINT ["dotnet", "Ledger.Worker.dll"]

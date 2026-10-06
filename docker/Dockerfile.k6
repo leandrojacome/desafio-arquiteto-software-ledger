@@ -1,0 +1,3 @@
+FROM grafana/k6:1.3.0@sha256:3ddc8b1a33a2c3d8edc6e99b6a762ae36cba08788463458f5e6a7703e14eb77d
+
+COPY ledger.k6.js /scripts/ledger.k6.js

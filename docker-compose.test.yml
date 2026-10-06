@@ -1,0 +1,59 @@
+name: ${COMPOSE_PROJECT_NAME:-ledger}-test
+
+services:
+  postgres:
+    restart: "no"
+
+  rabbitmq:
+    restart: "no"
+
+  api:
+    restart: "no"
+    environment:
+      Serilog__MinimumLevel__Default: Warning
+      OTEL_TRACES_SAMPLER: always_off
+      RateLimiting__WritePerAccount__Capacity: "500"
+      RateLimiting__WritePerAccount__RefillPerSecond: "250"
+      RateLimiting__WritePerClient__Capacity: "20000"
+      RateLimiting__WritePerClient__RefillPerSecond: "5000"
+      RateLimiting__ReadPerClient__Capacity: "100000"
+      RateLimiting__ReadPerClient__RefillPerSecond: "20000"
+
+  worker:
+    restart: "no"
+    environment:
+      Serilog__MinimumLevel__Default: Warning
+      OTEL_TRACES_SAMPLER: always_off
+      Integrity__RecentIntervalMinutes: "1"
+      Resilience__Health__OutboxLagSeconds: "5"
+
+  k6:
+    profiles:
+      - load
+    build:
+      context: tests/load
+      dockerfile: ../../docker/Dockerfile.k6
+    image: ledger-k6:${LEDGER_IMAGE_TAG:-local}
+    command: ["run", "/scripts/ledger.k6.js"]
+    environment:
+      BASE_URL: http://api:8080
+      TOKEN: ${LEDGER_TOKEN:-}
+      SCENARIO: ${K6_SCENARIO:-smoke}
+      LOAD_SCALE: ${LOAD_SCALE:-0.1}
+      RAMP_SECONDS: ${K6_RAMP_SECONDS:-120}
+      HOLD_SECONDS: ${K6_HOLD_SECONDS:-300}
+      COOLDOWN_SECONDS: ${K6_COOLDOWN_SECONDS:-30}
+      HOT_ACCOUNT_RATE: ${K6_HOT_ACCOUNT_RATE:-100}
+      ACCOUNT_COUNT: ${K6_ACCOUNT_COUNT:-}
+      STATEMENT_ACCOUNTS: ${K6_STATEMENT_ACCOUNTS:-10}
+      STATEMENT_ENTRIES: ${K6_STATEMENT_ENTRIES:-250}
+      VERIFIED_SAMPLE: ${K6_VERIFIED_SAMPLE:-20}
+      LATENCY_FACTOR: ${K6_LATENCY_FACTOR:-1}
+      WORKER_URL: http://worker:8081
+    depends_on:
+      api:
+        condition: service_healthy
+      worker:
+        condition: service_healthy
+    networks:
+      - ledger

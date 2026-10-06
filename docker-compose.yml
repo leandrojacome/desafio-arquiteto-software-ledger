@@ -1,0 +1,222 @@
+name: ${COMPOSE_PROJECT_NAME:-ledger}
+
+x-worker-build: &worker-build
+  context: .
+  dockerfile: docker/Dockerfile.worker
+
+x-hardening: &hardening
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+
+x-dotnet-environment: &dotnet-environment
+  ASPNETCORE_ENVIRONMENT: Development
+  Serilog__MinimumLevel__Default: ${LEDGER_LOG_LEVEL:-Information}
+  Postgres__Host: postgres
+  Postgres__Port: "5432"
+  Postgres__Database: ledger
+  Postgres__SslMode: Disable
+  Postgres__IncludeErrorDetail: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+  OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+  OTEL_RESOURCE_ATTRIBUTES: deployment.environment=development
+
+x-pii-environment: &pii-environment
+  Security__Pii__ActiveKeyVersion: "1"
+  Security__Pii__KeySets__1__EncryptionKey: ${PII_ENCRYPTION_KEY:?copie .env.example para .env}
+  Security__Pii__KeySets__1__BlindIndexKey: ${PII_BLIND_INDEX_KEY:?copie .env.example para .env}
+
+services:
+  postgres:
+    build:
+      context: docker/postgres
+    image: ledger-postgres:${LEDGER_IMAGE_TAG:-local}
+    hostname: ledger-postgres
+    restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - max_connections=200
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - synchronous_commit=on
+      - -c
+      - tcp_keepalives_idle=10
+      - -c
+      - tcp_keepalives_interval=5
+      - -c
+      - tcp_keepalives_count=3
+      - -c
+      - timezone=UTC
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?copie .env.example para .env}
+      POSTGRES_INITDB_ARGS: --auth-local=scram-sha-256 --auth-host=scram-sha-256
+      LEDGER_MIGRATOR_PASSWORD: ${LEDGER_MIGRATOR_PASSWORD:?copie .env.example para .env}
+      LEDGER_API_PASSWORD: ${LEDGER_API_PASSWORD:?copie .env.example para .env}
+      LEDGER_WORKER_PASSWORD: ${LEDGER_WORKER_PASSWORD:?copie .env.example para .env}
+      LEDGER_READONLY_PASSWORD: ${LEDGER_READONLY_PASSWORD:?copie .env.example para .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ledger-postgres-data:/var/lib/postgresql/data
+    shm_size: 256mb
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/ledger-healthcheck"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    networks:
+      - ledger
+
+  rabbitmq:
+    image: rabbitmq:3.13-management@sha256:e582c0bc7766f3342496d8485efb5a1df782b5ce3886ad017e2eaae442311f69
+    hostname: ledger-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-ledger_worker}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?copie .env.example para .env}
+      RABBITMQ_LOG: ${RABBITMQ_LOG_LEVEL:-error}
+    ports:
+      - "127.0.0.1:${RABBITMQ_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - ledger-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+    networks:
+      - ledger
+
+  migrator:
+    build: *worker-build
+    image: ledger-migrator:${LEDGER_IMAGE_TAG:-local}
+    command: ["--migrate"]
+    restart: "no"
+    <<: *hardening
+    environment:
+      <<: *dotnet-environment
+      Postgres__Sources__Migrator__Username: ledger_migrator
+      Postgres__Sources__Migrator__Password: ${LEDGER_MIGRATOR_PASSWORD:?copie .env.example para .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    networks:
+      - ledger
+
+  dev-keys:
+    image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+    restart: "no"
+    <<: *hardening
+    environment:
+      DEV_JWT_PUBLIC_KEY_PEM_B64: ${DEV_JWT_PUBLIC_KEY_PEM_B64:?defina DEV_JWT_PUBLIC_KEY_PEM_B64 no .env conforme o README}
+    command:
+      - sh
+      - -c
+      - rm -f /keys/dev-public.pem.tmp && printf '%s' "$$DEV_JWT_PUBLIC_KEY_PEM_B64" | base64 -d > /keys/dev-public.pem.tmp && chmod 0444 /keys/dev-public.pem.tmp && mv -f /keys/dev-public.pem.tmp /keys/dev-public.pem
+    volumes:
+      - ledger-dev-keys:/keys
+    networks:
+      - ledger
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    image: ledger-api:${LEDGER_IMAGE_TAG:-local}
+    restart: unless-stopped
+    stop_grace_period: 35s
+    <<: *hardening
+    environment:
+      <<: [*dotnet-environment, *pii-environment]
+      Postgres__Sources__Write__Password: ${LEDGER_API_PASSWORD:?copie .env.example para .env}
+      Postgres__Sources__Balance__Password: ${LEDGER_API_PASSWORD:?copie .env.example para .env}
+      Postgres__Sources__Statement__Password: ${LEDGER_API_PASSWORD:?copie .env.example para .env}
+      Security__Cursor__SigningKey: ${CURSOR_SIGNING_KEY:?copie .env.example para .env}
+      Authentication__Mode: LocalKey
+      Authentication__Issuer: https://idp.local.test
+      Authentication__Audience: ledger-api
+      Authentication__RequireHttpsMetadata: "false"
+      Authentication__LocalKey__PublicKeyPath: /run/keys/dev-public.pem
+      OTEL_SERVICE_NAME: ledger-api
+    ports:
+      - "127.0.0.1:${API_PORT:-8080}:8080"
+    volumes:
+      - ledger-dev-keys:/run/keys:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+      dev-keys:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck", "8080", "/health/ready"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+      start_period: 15s
+    networks:
+      - ledger
+
+  worker:
+    build: *worker-build
+    image: ledger-worker:${LEDGER_IMAGE_TAG:-local}
+    restart: unless-stopped
+    stop_grace_period: 35s
+    <<: *hardening
+    environment:
+      <<: [*dotnet-environment, *pii-environment]
+      Postgres__Sources__Worker__Password: ${LEDGER_WORKER_PASSWORD:?copie .env.example para .env}
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Port: "5672"
+      RabbitMq__Username: ${RABBITMQ_USERNAME:-ledger_worker}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:?copie .env.example para .env}
+      RabbitMq__UseTls: "false"
+      OTEL_SERVICE_NAME: ledger-worker
+    ports:
+      - "127.0.0.1:${WORKER_HEALTH_PORT:-8081}:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck", "8081", "/health/ready"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+      start_period: 15s
+    networks:
+      - ledger
+
+  otel:
+    profiles:
+      - observability
+    image: grafana/otel-lgtm:0.11.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${OTEL_GRAFANA_PORT:-3000}:3000"
+    networks:
+      - ledger
+
+volumes:
+  ledger-postgres-data:
+  ledger-rabbitmq-data:
+  ledger-dev-keys:
+
+networks:
+  ledger:
