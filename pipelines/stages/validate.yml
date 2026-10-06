@@ -1,0 +1,37 @@
+stages:
+  - stage: validate
+    displayName: Validação
+    dependsOn: []
+    jobs:
+      - job: build
+        displayName: Compilar e conferir o código
+        timeoutInMinutes: 25
+        steps:
+          - template: /pipelines/steps/checkout.yml
+          - template: /pipelines/steps/setup-dotnet.yml
+
+          - bash: dotnet build -c Release
+            displayName: Restaurar e compilar com warnings como erro
+
+          - bash: dotnet format --verify-no-changes
+            displayName: Conferir formatação
+
+          - bash: |
+              set -euo pipefail
+              export DOTNET_CLI_UI_LANGUAGE=en
+              report="$(dotnet list package --vulnerable --include-transitive 2>&1)"
+              echo "$report"
+              if grep -q "has the following vulnerable packages" <<< "$report"; then
+                echo "Há pacotes com vulnerabilidade conhecida."
+                exit 1
+              fi
+            displayName: Procurar pacotes vulneráveis
+
+      - job: secrets
+        displayName: Varredura de segredos
+        timeoutInMinutes: 15
+        steps:
+          - template: /pipelines/steps/checkout.yml
+
+          - bash: docker run --rm -v "$(Build.SourcesDirectory):/repo:ro" $(gitleaksImage) detect --no-git --source /repo --redact --exit-code 1
+            displayName: Varredura de segredos com gitleaks na árvore de arquivos

@@ -1,0 +1,14 @@
+steps:
+  - task: UseDotNet@2
+    displayName: Instalar o SDK do .NET 10
+    inputs:
+      packageType: sdk
+      version: 10.0.x
+
+  - task: Cache@2
+    displayName: Restaurar o cache de pacotes NuGet
+    inputs:
+      key: 'nuget | "$(Agent.OS)" | **/Directory.Packages.props, **/*.csproj'
+      restoreKeys: |
+        nuget | "$(Agent.OS)"
+      path: $(NUGET_PACKAGES)

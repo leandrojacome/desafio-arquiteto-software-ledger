@@ -1,0 +1,4 @@
+steps:
+  - checkout: self
+    fetchDepth: 1
+    displayName: Baixar o código (raso)

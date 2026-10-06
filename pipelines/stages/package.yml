@@ -1,0 +1,40 @@
+stages:
+  - stage: package
+    displayName: Imagens
+    dependsOn: validate
+    jobs:
+      - job: images
+        displayName: Construir, varrer e inventariar as imagens
+        timeoutInMinutes: 25
+        steps:
+          - template: /pipelines/steps/checkout.yml
+
+          - bash: cp .env.example .env
+            displayName: Copiar o .env de desenvolvimento do exemplo
+
+          - bash: docker compose build --pull
+            displayName: Construir as imagens
+            env:
+              DEV_JWT_PUBLIC_KEY_PEM_B64: somente-para-construir
+
+          - bash: |
+              set -euo pipefail
+              for image in ledger-api ledger-worker; do
+                docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$(Agent.TempDirectory)/trivy:/root/.cache/trivy" $(trivyImage) image --no-progress --severity HIGH,CRITICAL --exit-code 1 --ignore-unfixed "$image:local"
+              done
+            displayName: Varredura de vulnerabilidades nas imagens
+
+          - bash: |
+              set -euo pipefail
+              mkdir -p "$(Build.ArtifactStagingDirectory)/sbom"
+              for image in ledger-api ledger-worker; do
+                docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$(Agent.TempDirectory)/trivy:/root/.cache/trivy" -v "$(Build.ArtifactStagingDirectory)/sbom:/out" $(trivyImage) image --no-progress --format cyclonedx --output "/out/$image.cdx.json" "$image:local"
+              done
+            displayName: Gerar a lista de componentes de cada imagem em CycloneDX
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publicar a lista de componentes
+            inputs:
+              targetPath: $(Build.ArtifactStagingDirectory)/sbom
+              artifact: sbom
+              publishLocation: pipeline

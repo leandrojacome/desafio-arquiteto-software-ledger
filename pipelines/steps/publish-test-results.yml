@@ -1,0 +1,13 @@
+parameters:
+  - name: title
+    type: string
+
+steps:
+  - task: PublishTestResults@2
+    displayName: Publicar resultados dos testes
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: VSTest
+      testResultsFiles: '**/*.trx'
+      searchFolder: $(Build.SourcesDirectory)/TestResults
+      testRunTitle: ${{ parameters.title }}

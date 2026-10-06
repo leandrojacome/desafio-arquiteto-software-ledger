@@ -1,0 +1,5 @@
+variables:
+  - name: gitleaksImage
+    value: zricethezav/gitleaks:v8.21.2@sha256:0e99e8821643ea5b235718642b93bb32486af9c8162c8b8731f7cbdc951a7f46
+  - name: trivyImage
+    value: aquasec/trivy:0.57.1@sha256:5c59e08f980b5d4d503329773480fcea2c9bdad7e381d846fbf9f2ecb8050f6b

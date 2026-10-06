@@ -1,0 +1,105 @@
+parameters:
+  - name: pushImages
+    type: boolean
+    default: false
+  - name: containerRegistry
+    type: string
+    default: ''
+  - name: registryServiceConnection
+    type: string
+    default: ''
+  - name: environment
+    type: string
+    default: ledger-registry
+
+stages:
+  - stage: registryCheck
+    displayName: Conferência do registro
+    dependsOn:
+      - test
+      - package
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], variables['mainBranch']), or(eq('${{ parameters.pushImages }}', 'true'), eq(variables['LEDGER_PUSH_IMAGES'], 'true')))
+    jobs:
+      - job: check
+        displayName: Conferir a configuração do registro
+        timeoutInMinutes: 5
+        steps:
+          - checkout: none
+
+          - bash: |
+              set -euo pipefail
+              fail() {
+                echo "##vso[task.logissue type=error]$1"
+                exit 1
+              }
+              case "$REGISTRY" in
+                ''|*'$'*) fail "Informe o parâmetro containerRegistry ou a variável LEDGER_CONTAINER_REGISTRY do grupo de variáveis." ;;
+              esac
+              case "$CONNECTION" in
+                ''|*'$'*) fail "Informe o parâmetro registryServiceConnection ou a variável LEDGER_REGISTRY_CONNECTION do grupo de variáveis." ;;
+              esac
+              echo "Registro $REGISTRY, conexão de serviço $CONNECTION."
+            displayName: Recusar o envio sem registro e sem conexão de serviço
+            env:
+              REGISTRY: ${{ coalesce(parameters.containerRegistry, '$(LEDGER_CONTAINER_REGISTRY)') }}
+              CONNECTION: ${{ coalesce(parameters.registryServiceConnection, '$(LEDGER_REGISTRY_CONNECTION)') }}
+
+  - stage: release
+    displayName: Publicação no registro
+    dependsOn: registryCheck
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], variables['mainBranch']), or(eq('${{ parameters.pushImages }}', 'true'), eq(variables['LEDGER_PUSH_IMAGES'], 'true')))
+    jobs:
+      - deployment: push
+        displayName: Enviar as imagens da API e do Worker
+        timeoutInMinutes: 40
+        environment: ${{ parameters.environment }}
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: /pipelines/steps/checkout.yml
+
+                - bash: cp .env.example .env
+                  displayName: Copiar o .env de desenvolvimento do exemplo
+                  workingDirectory: $(Build.SourcesDirectory)
+
+                - bash: docker compose build --pull api worker
+                  displayName: Construir as imagens da API e do Worker com a etiqueta do commit
+                  workingDirectory: $(Build.SourcesDirectory)
+                  env:
+                    LEDGER_IMAGE_TAG: $(Build.SourceVersion)
+                    DEV_JWT_PUBLIC_KEY_PEM_B64: somente-para-construir
+
+                - bash: |
+                    set -euo pipefail
+                    for image in ledger-api ledger-worker; do
+                      docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$(Agent.TempDirectory)/trivy:/root/.cache/trivy" $(trivyImage) image --no-progress --severity HIGH,CRITICAL --exit-code 1 --ignore-unfixed "$image:$(Build.SourceVersion)"
+                    done
+                  displayName: Varredura de vulnerabilidades nas imagens que serão enviadas
+                  workingDirectory: $(Build.SourcesDirectory)
+
+                - task: Docker@2
+                  displayName: Entrar no Azure Container Registry
+                  inputs:
+                    command: login
+                    containerRegistry: ${{ coalesce(parameters.registryServiceConnection, '$(LEDGER_REGISTRY_CONNECTION)') }}
+
+                - bash: |
+                    set -euo pipefail
+                    for image in ledger-api ledger-worker; do
+                      for tag in "$(Build.SourceVersion)" "$(Build.BuildNumber)"; do
+                        docker tag "$image:$(Build.SourceVersion)" "$REGISTRY/$image:$tag"
+                        docker push "$REGISTRY/$image:$tag"
+                      done
+                    done
+                  displayName: Enviar as imagens com a etiqueta do commit e a do número da execução
+                  workingDirectory: $(Build.SourcesDirectory)
+                  env:
+                    REGISTRY: ${{ coalesce(parameters.containerRegistry, '$(LEDGER_CONTAINER_REGISTRY)') }}
+
+                - task: Docker@2
+                  displayName: Sair do Azure Container Registry
+                  condition: always()
+                  inputs:
+                    command: logout
+                    containerRegistry: ${{ coalesce(parameters.registryServiceConnection, '$(LEDGER_REGISTRY_CONNECTION)') }}

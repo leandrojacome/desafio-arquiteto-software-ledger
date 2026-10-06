@@ -1,0 +1,89 @@
+name: $(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  batch: true
+  branches:
+    include:
+      - main
+
+pr:
+  autoCancel: true
+  branches:
+    include:
+      - main
+
+parameters:
+  - name: profile
+    displayName: Perfil dos testes (auto escolhe o rápido em pull request e o completo nas demais execuções)
+    type: string
+    default: auto
+    values:
+      - auto
+      - quick
+      - full
+  - name: pushImages
+    displayName: Enviar as imagens ao Azure Container Registry
+    type: boolean
+    default: false
+  - name: containerRegistry
+    displayName: Servidor do registro (por exemplo, nomedoregistro.azurecr.io)
+    type: string
+    default: ''
+  - name: registryServiceConnection
+    displayName: Conexão de serviço do registro
+    type: string
+    default: ''
+  - name: releaseEnvironment
+    displayName: Environment que exige aprovação antes do envio
+    type: string
+    default: ledger-registry
+  - name: variableGroup
+    displayName: Grupo de variáveis com a configuração de entrega (opcional)
+    type: string
+    default: ''
+  - name: vmImage
+    displayName: Imagem da máquina hospedada
+    type: string
+    default: ubuntu-24.04
+
+pool:
+  vmImage: ${{ parameters.vmImage }}
+
+variables:
+  - name: DOTNET_NOLOGO
+    value: 'true'
+  - name: DOTNET_CLI_TELEMETRY_OPTOUT
+    value: 'true'
+  - name: DOTNET_SKIP_FIRST_TIME_EXPERIENCE
+    value: 'true'
+  - name: NUGET_PACKAGES
+    value: $(Pipeline.Workspace)/.nuget/packages
+  - name: LEDGER_REQUIRE_DOCKER
+    value: 'true'
+  - name: mainBranch
+    value: refs/heads/main
+  - template: /pipelines/variables/tools.yml
+  - ${{ if ne(parameters.variableGroup, '') }}:
+      - group: ${{ parameters.variableGroup }}
+
+stages:
+  - template: /pipelines/stages/validate.yml
+
+  - template: /pipelines/stages/test.yml
+    parameters:
+      ${{ if eq(parameters.profile, 'auto') }}:
+        ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+          profile: quick
+        ${{ else }}:
+          profile: full
+      ${{ else }}:
+        profile: ${{ parameters.profile }}
+
+  - template: /pipelines/stages/package.yml
+
+  - template: /pipelines/stages/release.yml
+    parameters:
+      pushImages: ${{ parameters.pushImages }}
+      containerRegistry: ${{ parameters.containerRegistry }}
+      registryServiceConnection: ${{ parameters.registryServiceConnection }}
+      environment: ${{ parameters.releaseEnvironment }}

@@ -1,0 +1,111 @@
+parameters:
+  - name: profile
+    type: string
+    default: full
+    values:
+      - quick
+      - full
+
+stages:
+  - stage: test
+    displayName: Testes
+    dependsOn: validate
+    jobs:
+      - job: unit
+        displayName: Unidade e arquitetura
+        timeoutInMinutes: 20
+        steps:
+          - template: /pipelines/steps/checkout.yml
+          - template: /pipelines/steps/setup-dotnet.yml
+
+          - bash: dotnet test --filter "FullyQualifiedName!~IntegrationTests&FullyQualifiedName!~EndToEnd" -c Release --logger "trx" --results-directory TestResults
+            displayName: Testes de unidade e de arquitetura
+
+          - bash: |
+              set -euo pipefail
+              dotnet test tests/Ledger.Domain.Tests -c Release -p:CollectCoverage=true -p:Include="[Ledger.Domain]*" -p:CoverletOutputFormat=cobertura -p:CoverletOutput=../../TestResults/coverage/ledger-domain -p:Threshold=95%2C90 -p:ThresholdType=line%2Cbranch
+              dotnet test tests/Ledger.Application.Tests -c Release -p:CollectCoverage=true -p:Include="[Ledger.Application]*" -p:CoverletOutputFormat=cobertura -p:CoverletOutput=../../TestResults/coverage/ledger-application -p:Threshold=90%2C80 -p:ThresholdType=line%2Cbranch
+            displayName: Pisos de cobertura do domínio (95% e 90%) e da aplicação (90% e 80%)
+
+          - template: /pipelines/steps/publish-test-results.yml
+            parameters:
+              title: unidade e arquitetura
+
+          - task: PublishCodeCoverageResults@2
+            displayName: Publicar a cobertura
+            condition: succeededOrFailed()
+            inputs:
+              summaryFileLocation: $(Build.SourcesDirectory)/TestResults/coverage/*.cobertura.xml
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publicar os arquivos de cobertura
+            condition: succeededOrFailed()
+            inputs:
+              targetPath: $(Build.SourcesDirectory)/TestResults/coverage
+              artifact: coverage
+              publishLocation: pipeline
+
+      - job: integration
+        displayName: Integração
+        timeoutInMinutes: 60
+        steps:
+          - template: /pipelines/steps/checkout.yml
+          - template: /pipelines/steps/setup-dotnet.yml
+
+          - ${{ if eq(parameters.profile, 'quick') }}:
+              - bash: dotnet test tests/Ledger.Api.IntegrationTests -c Release --filter "Speed!=Slow" --logger "trx" --results-directory TestResults
+                displayName: Integração no perfil rápido, com PostgreSQL e RabbitMQ reais
+
+          - ${{ else }}:
+              - bash: dotnet test tests/Ledger.Api.IntegrationTests -c Release --logger "trx" --results-directory TestResults
+                displayName: Integração completa, com PostgreSQL e RabbitMQ reais
+
+          - template: /pipelines/steps/publish-test-results.yml
+            parameters:
+              title: integração
+
+      - job: contract
+        displayName: Contrato OpenAPI
+        timeoutInMinutes: 15
+        steps:
+          - template: /pipelines/steps/checkout.yml
+          - template: /pipelines/steps/setup-dotnet.yml
+
+          - bash: dotnet test tests/Ledger.Api.IntegrationTests -c Release --filter "FullyQualifiedName~OpenApiContractTests" --logger "trx" --results-directory TestResults
+            displayName: Gerar o documento OpenAPI e compará-lo com o arquivo versionado
+
+          - template: /pipelines/steps/publish-test-results.yml
+            parameters:
+              title: contrato
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publicar o contrato OpenAPI
+            inputs:
+              targetPath: $(Build.SourcesDirectory)/docs/05-contratos/openapi.v1.json
+              artifact: openapi
+              publishLocation: pipeline
+
+      - job: e2e
+        displayName: Fim a fim
+        dependsOn:
+          - unit
+          - integration
+          - contract
+        timeoutInMinutes: 60
+        variables:
+          LEDGER_E2E_LATENCY_FACTOR: '3'
+        steps:
+          - template: /pipelines/steps/checkout.yml
+          - template: /pipelines/steps/setup-dotnet.yml
+
+          - ${{ if eq(parameters.profile, 'quick') }}:
+              - bash: LEDGER_E2E_PROVISION=true dotnet test tests/Ledger.EndToEnd.Tests -c Release --filter "Category!=Resilience" --logger "trx" --results-directory TestResults
+                displayName: Fim a fim provisionado, perfil rápido
+
+          - ${{ else }}:
+              - bash: LEDGER_E2E_PROVISION=true dotnet test tests/Ledger.EndToEnd.Tests -c Release --logger "trx" --results-directory TestResults
+                displayName: Fim a fim provisionado, com os cenários de resiliência
+
+          - template: /pipelines/steps/publish-test-results.yml
+            parameters:
+              title: fim a fim
