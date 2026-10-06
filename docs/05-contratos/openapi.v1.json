@@ -1,0 +1,1747 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "Ledger API",
+    "description": "API interna do ledger de um banco digital. Registra créditos e débitos nas contas e informa o saldo de uma conta em qualquer instante, sem perder nem duplicar dinheiro. Toda rota de negócio exige um token bearer com o escopo ledger.read ou ledger.write. As escritas são idempotentes por meio do cabeçalho Idempotency-Key. Todo erro é um documento Problem Details com um código estável. Os instantes recebidos aceitam deslocamento de fuso ISO 8601, como Z ou -03:00 (horário de Brasília), e todo instante devolvido vem em UTC com o sufixo Z.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/accounts": {
+      "post": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Cria uma conta com o documento do titular protegido.",
+        "description": "Rota administrativa e de teste local. A conta nasce com saldo zero em BRL. O documento do titular nunca é devolvido, apenas a forma mascarada. O cabeçalho Idempotency-Key é opcional: com ele, repetir a requisição com o mesmo corpo devolve a conta original com Idempotent-Replayed: true, e um corpo diferente é recusado com 422. Sem ele, cada requisição cria uma conta nova.\n\nExige o escopo ledger.write e um chamador autorizado a provisionar contas.",
+        "operationId": "CreateAccount",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Define a identidade da escrita. Repetir a requisição com a mesma chave e o mesmo conteúdo devolve o resultado original com Idempotent-Replayed: true. A mesma chave com conteúdo diferente é recusada com 422 IDEMPOTENCY_KEY_REUSED. Até 128 caracteres ASCII visíveis.",
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[!-~]+$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "description": "Identificador que acompanha a requisição nos logs. Um valor válido é mantido, e, na falta dele, o serviço gera um. Ele sempre volta na resposta.",
+            "schema": {
+              "maxLength": 64,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9._:-]{8,64}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "required": [
+                  "holderDocument",
+                  "currency"
+                ],
+                "type": "object",
+                "properties": {
+                  "holderDocument": {
+                    "maxLength": 18,
+                    "minLength": 11,
+                    "type": "string",
+                    "description": "CPF ou CNPJ do titular, com ou sem pontuação, até 18 caracteres. É armazenado cifrado e nunca devolvido."
+                  },
+                  "currency": {
+                    "pattern": "^[A-Z]{3}$",
+                    "enum": [
+                      "BRL"
+                    ],
+                    "type": "string",
+                    "description": "Código ISO 4217 da conta. Só BRL é aceito."
+                  },
+                  "overdraftLimit": {
+                    "pattern": "^[0-9]+(\\.[0-9]{1,2})?$",
+                    "type": "string",
+                    "description": "Limite de cheque especial como texto decimal com no máximo duas casas decimais. O padrão é 0.00.",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Corpo de POST /v1/accounts. Propriedades desconhecidas são recusadas."
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Criado.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Location": {
+                "description": "Caminho em que o recurso criado pode ser lido.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Idempotent-Replayed": {
+                "description": "Presente, com o valor true, quando a resposta repete o resultado de uma requisição anterior com a mesma Idempotency-Key.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAccountResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Requisição inválida. Código do problema: VALIDATION_FAILED.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado. Código do problema: UNAUTHENTICATED.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Desafio Bearer. Nunca informa o motivo da recusa do token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acesso negado. Código do problema: FORBIDDEN.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Corpo da requisição grande demais. Código do problema: PAYLOAD_TOO_LARGE.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Tipo de mídia não suportado. Código do problema: UNSUPPORTED_MEDIA_TYPE.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Requisição não processável. Código do problema: IDEMPOTENCY_KEY_REUSED.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Excesso de requisições. Código do problema: RATE_LIMITED.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Segundos de espera antes de repetir a requisição.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor. Código do problema: INTERNAL_ERROR.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Serviço indisponível. Código do problema: SERVICE_UNAVAILABLE.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Segundos de espera antes de repetir a requisição.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/accounts/{accountId}/entries": {
+      "post": {
+        "tags": [
+          "Entries"
+        ],
+        "summary": "Registra um crédito ou um débito em uma conta.",
+        "description": "Exige o cabeçalho Idempotency-Key. Repetir a requisição com a mesma chave e o mesmo conteúdo devolve o lançamento original com Idempotent-Replayed: true. Um débito que a conta não cobre é recusado com 422 e não consome a chave.\n\nExige o escopo ledger.write.",
+        "operationId": "RegisterEntry",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "description": "Identificador da conta, na forma canônica em minúsculas e com hifens. Qualquer outro texto responde ACCOUNT_NOT_FOUND.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Define a identidade da escrita. Repetir a requisição com a mesma chave e o mesmo conteúdo devolve o resultado original com Idempotent-Replayed: true. A mesma chave com conteúdo diferente é recusada com 422 IDEMPOTENCY_KEY_REUSED. Até 128 caracteres ASCII visíveis.",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[!-~]+$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "description": "Identificador que acompanha a requisição nos logs. Um valor válido é mantido, e, na falta dele, o serviço gera um. Ele sempre volta na resposta.",
+            "schema": {
+              "maxLength": 64,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9._:-]{8,64}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "required": [
+                  "type",
+                  "amount",
+                  "currency"
+                ],
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "CREDIT",
+                      "DEBIT"
+                    ],
+                    "type": "string",
+                    "description": "CREDIT soma ao saldo e DEBIT subtrai dele."
+                  },
+                  "amount": {
+                    "pattern": "^[0-9]+(\\.[0-9]{1,2})?$",
+                    "type": "string",
+                    "description": "Valor positivo como texto decimal com no máximo duas casas decimais, até 999999999.99."
+                  },
+                  "currency": {
+                    "pattern": "^[A-Z]{3}$",
+                    "type": "string",
+                    "description": "Código ISO 4217 do lançamento. Deve corresponder à moeda da conta."
+                  },
+                  "occurredAt": {
+                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.([0-9]{1,6}|[0-9]{6}0{1,3}))?(Z|[+-][0-9]{2}:[0-9]{2})$",
+                    "type": "string",
+                    "description": "Data de negócio do lançamento, como instante ISO 8601 com fuso horário informado, por exemplo Z ou -03:00 (horário de Brasília, sem horário de verão desde 2019). Não pode estar no futuro além da tolerância do relógio do servidor, não pode ser anterior a 1970-01-01T00:00:00Z e não define o saldo. Se ausente, vale o instante do registro.",
+                    "nullable": true
+                  },
+                  "description": {
+                    "maxLength": 140,
+                    "minLength": 0,
+                    "type": "string",
+                    "description": "Texto livre de até 140 caracteres, sem caracteres de controle.",
+                    "nullable": true
+                  },
+                  "reference": {
+                    "maxLength": 100,
+                    "minLength": 0,
+                    "pattern": "^[!-~]+$",
+                    "type": "string",
+                    "description": "Referência do chamador com até 100 caracteres ASCII visíveis.",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Corpo de POST /v1/accounts/{accountId}/entries. Propriedades desconhecidas são recusadas."
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Criado.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Location": {
+                "description": "Caminho em que o recurso criado pode ser lido.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Idempotent-Replayed": {
+                "description": "Presente, com o valor true, quando a resposta repete o resultado de uma requisição anterior com a mesma Idempotency-Key.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Requisição inválida. Códigos do problema: VALIDATION_FAILED, IDEMPOTENCY_KEY_REQUIRED.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado. Código do problema: UNAUTHENTICATED.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Desafio Bearer. Nunca informa o motivo da recusa do token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acesso negado. Código do problema: FORBIDDEN.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Não encontrado. Código do problema: ACCOUNT_NOT_FOUND.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Corpo da requisição grande demais. Código do problema: PAYLOAD_TOO_LARGE.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Tipo de mídia não suportado. Código do problema: UNSUPPORTED_MEDIA_TYPE.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Requisição não processável. Códigos do problema: INSUFFICIENT_FUNDS, CURRENCY_MISMATCH, IDEMPOTENCY_KEY_REUSED.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Excesso de requisições. Código do problema: RATE_LIMITED.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Segundos de espera antes de repetir a requisição.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor. Código do problema: INTERNAL_ERROR.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Serviço indisponível. Código do problema: SERVICE_UNAVAILABLE.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Segundos de espera antes de repetir a requisição.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Entries"
+        ],
+        "summary": "Devolve o extrato de uma conta, do lançamento mais recente para o mais antigo, em páginas.",
+        "description": "Os lançamentos são ordenados pelo instante do registro e, em caso de empate, pela versão da conta. from é inclusivo e to é exclusivo, ambos instantes ISO 8601 com fuso horário informado. limit vai de 1 até o máximo configurado. nextCursor é assinado, vinculado à conta e nulo na última página.\n\nExige o escopo ledger.read.",
+        "operationId": "ListEntries",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "description": "Identificador da conta, na forma canônica em minúsculas e com hifens. Qualquer outro texto responde ACCOUNT_NOT_FOUND.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "description": "Identificador que acompanha a requisição nos logs. Um valor válido é mantido, e, na falta dele, o serviço gera um. Ele sempre volta na resposta.",
+            "schema": {
+              "maxLength": 64,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9._:-]{8,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Limite inferior inclusivo do instante do registro, como instante ISO 8601 com fuso horário informado, por exemplo Z ou -03:00. Na URL, o deslocamento positivo deve ser escrito como %2B, porque o + vira espaço.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "Limite superior exclusivo do instante do registro, como instante ISO 8601 com fuso horário informado, por exemplo Z ou -03:00. Deve ser posterior a from. Na URL, o deslocamento positivo deve ser escrito como %2B, porque o + vira espaço.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Tamanho da página. O limite superior é o máximo configurado, 200 a menos que a implantação o reduza.",
+            "schema": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer",
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "O nextCursor da página anterior. É assinado e vinculado à conta.",
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Requisição inválida. Código do problema: VALIDATION_FAILED.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado. Código do problema: UNAUTHENTICATED.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Desafio Bearer. Nunca informa o motivo da recusa do token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acesso negado. Código do problema: FORBIDDEN.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Não encontrado. Código do problema: ACCOUNT_NOT_FOUND.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Excesso de requisições. Código do problema: RATE_LIMITED.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Segundos de espera antes de repetir a requisição.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor. Código do problema: INTERNAL_ERROR.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Serviço indisponível. Código do problema: SERVICE_UNAVAILABLE.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Segundos de espera antes de repetir a requisição.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/accounts/{accountId}/entries/{entryId}/reversals": {
+      "post": {
+        "tags": [
+          "Entries"
+        ],
+        "summary": "Estorna um lançamento por inteiro com um novo lançamento do tipo oposto.",
+        "description": "Exige o cabeçalho Idempotency-Key. O corpo é opcional e aceita apenas description. Um lançamento pode ser estornado uma única vez, e um estorno não pode ser estornado.\n\nExige o escopo ledger.write.",
+        "operationId": "ReverseEntry",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "description": "Identificador da conta, na forma canônica em minúsculas e com hifens. Qualquer outro texto responde ACCOUNT_NOT_FOUND.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entryId",
+            "in": "path",
+            "description": "Identificador do lançamento a estornar, na forma canônica em minúsculas e com hifens. Qualquer outro texto responde ENTRY_NOT_FOUND.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Define a identidade da escrita. Repetir a requisição com a mesma chave e o mesmo conteúdo devolve o resultado original com Idempotent-Replayed: true. A mesma chave com conteúdo diferente é recusada com 422 IDEMPOTENCY_KEY_REUSED. Até 128 caracteres ASCII visíveis.",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[!-~]+$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "description": "Identificador que acompanha a requisição nos logs. Um valor válido é mantido, e, na falta dele, o serviço gera um. Ele sempre volta na resposta.",
+            "schema": {
+              "maxLength": 64,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9._:-]{8,64}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "maxLength": 140,
+                    "minLength": 0,
+                    "type": "string",
+                    "description": "Texto livre de até 140 caracteres, sem caracteres de controle.",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Corpo opcional da rota de estorno. Propriedades desconhecidas são recusadas."
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Criado.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Location": {
+                "description": "Caminho em que o recurso criado pode ser lido.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Idempotent-Replayed": {
+                "description": "Presente, com o valor true, quando a resposta repete o resultado de uma requisição anterior com a mesma Idempotency-Key.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Requisição inválida. Códigos do problema: VALIDATION_FAILED, IDEMPOTENCY_KEY_REQUIRED.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado. Código do problema: UNAUTHENTICATED.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Desafio Bearer. Nunca informa o motivo da recusa do token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acesso negado. Código do problema: FORBIDDEN.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Não encontrado. Códigos do problema: ACCOUNT_NOT_FOUND, ENTRY_NOT_FOUND.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflito. Código do problema: ENTRY_ALREADY_REVERSED.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Corpo da requisição grande demais. Código do problema: PAYLOAD_TOO_LARGE.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Tipo de mídia não suportado. Código do problema: UNSUPPORTED_MEDIA_TYPE.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Requisição não processável. Códigos do problema: ENTRY_NOT_REVERSIBLE, INSUFFICIENT_FUNDS, IDEMPOTENCY_KEY_REUSED.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Excesso de requisições. Código do problema: RATE_LIMITED.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Segundos de espera antes de repetir a requisição.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor. Código do problema: INTERNAL_ERROR.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Serviço indisponível. Código do problema: SERVICE_UNAVAILABLE.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Segundos de espera antes de repetir a requisição.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/accounts/{accountId}/balance": {
+      "get": {
+        "tags": [
+          "Balances"
+        ],
+        "summary": "Devolve o saldo de uma conta, agora ou em um instante.",
+        "description": "Sem parâmetros, a resposta é o saldo atual. Com asOf, um instante ISO 8601 com fuso horário informado, como Z ou -03:00, a resposta é o saldo registrado até esse instante, e settled indica se o instante já está fora da janela de acomodação.\n\nExige o escopo ledger.read.",
+        "operationId": "GetBalance",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "description": "Identificador da conta, na forma canônica em minúsculas e com hifens. Qualquer outro texto responde ACCOUNT_NOT_FOUND.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "description": "Identificador que acompanha a requisição nos logs. Um valor válido é mantido, e, na falta dele, o serviço gera um. Ele sempre volta na resposta.",
+            "schema": {
+              "maxLength": 64,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9._:-]{8,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "asOf",
+            "in": "query",
+            "description": "Instante ISO 8601 com fuso horário informado, que não esteja no futuro. O saldo é o registrado até esse instante. O horário de Brasília é -03:00 o ano todo, sem horário de verão desde 2019. Na URL, o deslocamento positivo deve ser escrito como %2B, porque o + vira espaço.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BalanceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Requisição inválida. Códigos do problema: VALIDATION_FAILED, INVALID_AS_OF.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado. Código do problema: UNAUTHENTICATED.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Desafio Bearer. Nunca informa o motivo da recusa do token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acesso negado. Código do problema: FORBIDDEN.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Não encontrado. Código do problema: ACCOUNT_NOT_FOUND.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Excesso de requisições. Código do problema: RATE_LIMITED.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Segundos de espera antes de repetir a requisição.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor. Código do problema: INTERNAL_ERROR.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Serviço indisponível. Código do problema: SERVICE_UNAVAILABLE.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Identificador de correlação da requisição.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Segundos de espera antes de repetir a requisição.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BalanceResponse": {
+        "required": [
+          "accountId",
+          "currency",
+          "balance",
+          "overdraftLimit",
+          "asOf",
+          "lastEntryId"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "type": "string",
+            "description": "Identificador da conta."
+          },
+          "currency": {
+            "type": "string",
+            "description": "Código ISO 4217 da conta."
+          },
+          "balance": {
+            "pattern": "^-?[0-9]+\\.[0-9]{2}$",
+            "type": "string",
+            "description": "Saldo como texto decimal com sinal e duas casas decimais."
+          },
+          "overdraftLimit": {
+            "pattern": "^-?[0-9]+\\.[0-9]{2}$",
+            "type": "string",
+            "description": "Limite de cheque especial da conta, como texto decimal com duas casas decimais."
+          },
+          "asOf": {
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
+            "type": "string",
+            "description": "Instante a que o saldo se refere, em UTC. É o instante da requisição quando asOf está ausente."
+          },
+          "lastEntryId": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "type": "string",
+            "description": "Último lançamento registrado até o instante, ou null quando a conta ainda não tem lançamentos.",
+            "nullable": true
+          },
+          "settled": {
+            "type": "boolean",
+            "description": "Presente apenas quando asOf foi enviado. Indica se o instante já está fora da janela de acomodação, de modo que a resposta não pode mais mudar.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Saldo de uma conta agora ou em um instante."
+      },
+      "CreateAccountResponse": {
+        "required": [
+          "accountId",
+          "currency",
+          "overdraftLimit",
+          "holderDocumentMasked",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "type": "string",
+            "description": "Identificador da conta."
+          },
+          "currency": {
+            "type": "string",
+            "description": "Código ISO 4217 da conta."
+          },
+          "overdraftLimit": {
+            "pattern": "^-?[0-9]+\\.[0-9]{2}$",
+            "type": "string",
+            "description": "Limite de cheque especial como texto decimal com duas casas decimais."
+          },
+          "holderDocumentMasked": {
+            "type": "string",
+            "description": "Documento do titular com todos os dígitos ocultos, exceto os que a máscara deixa visíveis."
+          },
+          "createdAt": {
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
+            "type": "string",
+            "description": "Instante em que a conta foi criada, em UTC."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Conta criada, ou a conta original quando a requisição é uma repetição."
+      },
+      "EntryResponse": {
+        "required": [
+          "entryId",
+          "accountId",
+          "accountVersion",
+          "type",
+          "amount",
+          "currency",
+          "balanceAfter",
+          "occurredAt",
+          "recordedAt",
+          "reversesEntryId",
+          "description",
+          "reference"
+        ],
+        "type": "object",
+        "properties": {
+          "entryId": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "type": "string",
+            "description": "Identificador do lançamento."
+          },
+          "accountId": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "type": "string",
+            "description": "Identificador da conta."
+          },
+          "accountVersion": {
+            "type": "integer",
+            "description": "Número de sequência do lançamento na conta, a partir de 1.",
+            "format": "int64"
+          },
+          "type": {
+            "enum": [
+              "CREDIT",
+              "DEBIT"
+            ],
+            "type": "string",
+            "description": "CREDIT ou DEBIT."
+          },
+          "amount": {
+            "pattern": "^[0-9]+(\\.[0-9]{1,2})?$",
+            "type": "string",
+            "description": "Valor positivo como texto decimal com duas casas decimais."
+          },
+          "currency": {
+            "type": "string",
+            "description": "Código ISO 4217 do lançamento."
+          },
+          "balanceAfter": {
+            "pattern": "^-?[0-9]+\\.[0-9]{2}$",
+            "type": "string",
+            "description": "Saldo da conta logo depois deste lançamento."
+          },
+          "occurredAt": {
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
+            "type": "string",
+            "description": "Data de negócio informada pelo chamador, convertida para UTC."
+          },
+          "recordedAt": {
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
+            "type": "string",
+            "description": "Instante em que o ledger registrou o lançamento, em UTC. Define o saldo em um instante."
+          },
+          "reversesEntryId": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "type": "string",
+            "description": "Lançamento que este estorna, ou null.",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Texto livre informado pelo chamador, ou null.",
+            "nullable": true
+          },
+          "reference": {
+            "type": "string",
+            "description": "Referência informada pelo chamador, ou null.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Lançamento do ledger. Os lançamentos são imutáveis: um erro se corrige com um estorno."
+      },
+      "ProblemFieldError": {
+        "required": [
+          "field",
+          "reason",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "Nome da propriedade do corpo, do parâmetro de consulta ou do cabeçalho, ou $ para o corpo inteiro."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Código estável do motivo, como REQUIRED, INVALID_FORMAT, OUT_OF_RANGE ou TOO_LONG."
+          },
+          "message": {
+            "type": "string",
+            "description": "Frase fixa que nunca repete o valor recebido."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Um campo inválido de uma requisição."
+      },
+      "ProblemResponse": {
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "instance",
+          "code",
+          "correlationId",
+          "traceId"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "URI que identifica o problema. É derivada do código."
+          },
+          "title": {
+            "type": "string",
+            "description": "Resumo curto do problema. É fixo para cada código."
+          },
+          "status": {
+            "type": "integer",
+            "description": "Status HTTP da resposta.",
+            "format": "int32"
+          },
+          "detail": {
+            "type": "string",
+            "description": "Explicação do problema, fixa para cada situação. Nunca repete valores recebidos."
+          },
+          "instance": {
+            "type": "string",
+            "description": "Caminho da requisição."
+          },
+          "code": {
+            "enum": [
+              "ACCOUNT_NOT_FOUND",
+              "CURRENCY_MISMATCH",
+              "ENTRY_ALREADY_REVERSED",
+              "ENTRY_NOT_FOUND",
+              "ENTRY_NOT_REVERSIBLE",
+              "FORBIDDEN",
+              "IDEMPOTENCY_KEY_REQUIRED",
+              "IDEMPOTENCY_KEY_REUSED",
+              "INSUFFICIENT_FUNDS",
+              "INTERNAL_ERROR",
+              "INVALID_AS_OF",
+              "METHOD_NOT_ALLOWED",
+              "NOT_FOUND",
+              "PAYLOAD_TOO_LARGE",
+              "RATE_LIMITED",
+              "SERVICE_UNAVAILABLE",
+              "UNAUTHENTICATED",
+              "UNSUPPORTED_MEDIA_TYPE",
+              "VALIDATION_FAILED"
+            ],
+            "type": "string",
+            "description": "Código de erro estável do catálogo."
+          },
+          "correlationId": {
+            "type": "string",
+            "description": "Identificador que acompanha a requisição nos logs. Repete o X-Correlation-Id."
+          },
+          "traceId": {
+            "type": "string",
+            "description": "Identificador do trace da requisição."
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProblemFieldError"
+            },
+            "description": "Campos inválidos. Presente apenas em VALIDATION_FAILED.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Problem Details (RFC 9457) devolvido em toda resposta de erro."
+      },
+      "StatementResponse": {
+        "required": [
+          "items",
+          "nextCursor",
+          "limit"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntryResponse"
+            },
+            "description": "Lançamentos da página."
+          },
+          "nextCursor": {
+            "type": "string",
+            "description": "Cursor assinado da próxima página, ou null na última. É vinculado à conta.",
+            "nullable": true
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Tamanho de página aplicado à requisição.",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Uma página do extrato de uma conta, com o lançamento mais recente primeiro."
+      }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "description": "Token de acesso JWT emitido pelo provedor de identidade do banco com o fluxo client credentials. A claim scope traz ledger.read, ledger.write ou ambos, e a claim client_id identifica o chamador.",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Accounts",
+      "description": "Criação de contas."
+    },
+    {
+      "name": "Entries",
+      "description": "Créditos, débitos, estornos e extrato de uma conta."
+    },
+    {
+      "name": "Balances",
+      "description": "Saldo de uma conta agora ou em um instante do passado."
+    }
+  ]
+}
