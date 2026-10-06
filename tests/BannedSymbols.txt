@@ -1,0 +1,17 @@
+P:System.DateTime.Now;Use TimeProvider.GetLocalNow or, better, TimeProvider.GetUtcNow
+P:System.DateTime.UtcNow;Use TimeProvider.GetUtcNow
+P:System.DateTime.Today;Use TimeProvider.GetUtcNow
+P:System.DateTimeOffset.Now;Use TimeProvider.GetUtcNow
+P:System.DateTimeOffset.UtcNow;Use TimeProvider.GetUtcNow
+M:System.Threading.Thread.Sleep(System.Int32);Await TimeProvider based delay or wait for a condition
+M:System.Threading.Thread.Sleep(System.TimeSpan);Await TimeProvider based delay or wait for a condition
+P:System.Threading.Tasks.Task`1.Result;Await the task instead of blocking on it
+M:System.Threading.Tasks.Task.Wait;Await the task instead of blocking on it
+M:System.Runtime.CompilerServices.TaskAwaiter.GetResult;Await the task instead of blocking on it
+M:System.Runtime.CompilerServices.TaskAwaiter`1.GetResult;Await the task instead of blocking on it
+M:System.Threading.Tasks.Task.ConfigureAwait(System.Boolean);ASP.NET Core has no synchronization context, so ConfigureAwait adds nothing
+M:System.Threading.Tasks.Task.ConfigureAwait(System.Threading.Tasks.ConfigureAwaitOptions);ASP.NET Core has no synchronization context, so ConfigureAwait adds nothing
+M:System.Threading.Tasks.Task`1.ConfigureAwait(System.Boolean);ASP.NET Core has no synchronization context, so ConfigureAwait adds nothing
+M:System.Threading.Tasks.Task`1.ConfigureAwait(System.Threading.Tasks.ConfigureAwaitOptions);ASP.NET Core has no synchronization context, so ConfigureAwait adds nothing
+M:System.Threading.Tasks.ValueTask.ConfigureAwait(System.Boolean);ASP.NET Core has no synchronization context, so ConfigureAwait adds nothing
+M:System.Threading.Tasks.ValueTask`1.ConfigureAwait(System.Boolean);ASP.NET Core has no synchronization context, so ConfigureAwait adds nothing
