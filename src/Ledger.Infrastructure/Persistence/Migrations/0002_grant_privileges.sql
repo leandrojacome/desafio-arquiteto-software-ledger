@@ -1,0 +1,12 @@
+GRANT SELECT, INSERT ON accounts TO ledger_api;
+GRANT SELECT, UPDATE ON accounts TO ledger_worker;
+GRANT SELECT, INSERT, UPDATE ON account_balances TO ledger_api;
+GRANT SELECT ON account_balances TO ledger_worker;
+GRANT SELECT, INSERT ON ledger_entries TO ledger_api;
+GRANT SELECT ON ledger_entries TO ledger_worker;
+GRANT SELECT, INSERT ON idempotency_keys TO ledger_api;
+GRANT INSERT ON outbox_messages TO ledger_api;
+GRANT SELECT, UPDATE, DELETE ON outbox_messages TO ledger_worker;
+GRANT INSERT ON audit_log TO ledger_api, ledger_worker;
+GRANT SELECT (id, currency, created_at) ON accounts TO ledger_readonly;
+GRANT SELECT ON account_balances, ledger_entries, idempotency_keys, audit_log TO ledger_readonly;
