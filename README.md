@@ -1,5 +1,7 @@
 # Ledger bancário
 
+[![CI](https://github.com/leandrojacome/desafio-arquiteto-software-ledger/actions/workflows/ci.yml/badge.svg)](https://github.com/leandrojacome/desafio-arquiteto-software-ledger/actions/workflows/ci.yml)
+
 Ledger de um banco digital: registra créditos e débitos nas contas dos clientes e responde quanto havia em cada conta em qualquer instante, hoje ou três anos atrás, sem perder nem duplicar dinheiro, mesmo sob estresse. É um sistema interno, chamado por outros sistemas do banco (aplicativo, Pix, cartões, conciliação) e sem interface própria. Está escrito em C# 14 sobre .NET 10, com PostgreSQL 16 e RabbitMQ 3.
 
 É um monolito modular com dois executáveis. A API (`Ledger.Api`) recebe as chamadas, valida o token e grava. O Worker (`Ledger.Worker`) aplica as migrações, publica a caixa de saída no RabbitMQ e faz as podas e a conferência de integridade. A arquitetura está explicada em [docs/](docs/README.md), que tem o mapa das páginas, e o ponto de partida técnico é a [visão geral](docs/01-visao-geral/visao-geral.md).
