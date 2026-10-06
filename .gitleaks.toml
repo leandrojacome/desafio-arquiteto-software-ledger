@@ -1,0 +1,21 @@
+title = "ledger-bancario"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Valores de exemplo da documentação, de desenvolvimento local e vetores de teste"
+paths = [
+  '''(^|/)\.env\.example$'''
+]
+regexes = [
+  '''^eyJhbGciOiJSUzI1NiIsImtpZCI6ImxlZGdlci0yMDI2LTA5In0\.''',
+  '''^rev-4f1a9c2e-7b3d-4e58-9a06-c2d81f5b7e30$''',
+  '''^AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=$''',
+  '''^AgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICE=$''',
+  '''^MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=$''',
+  '''^QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU=$''',
+  '''^ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=$''',
+  '''^enl4d3Z1dHNycXBvbm1sa2ppaGdmZWRjYmEwOTg3NjU=$''',
+  '''^eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIn0\.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c$'''
+]
