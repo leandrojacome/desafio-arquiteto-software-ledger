@@ -1,0 +1,3 @@
+# 07 Consistência e segurança
+
+O que o ledger garante sobre o dinheiro e sobre os dados, e como se protege. O [modelo de consistência](modelo-de-consistencia.md) numera as invariantes e diz o que impõe cada uma. [Segurança](seguranca.md) traz o modelo de ameaças, [autenticação e autorização](autenticacao-e-autorizacao.md) trata do token e do que cada rota exige, [proteção de dados](protecao-de-dados.md) cobre o documento do titular e a LGPD, e a [trilha de auditoria](trilha-de-auditoria.md) lista o que fica registrado. O que ainda não foi medido nem exercitado está em [Limites conhecidos](../09-qualidade/limites-conhecidos.md).

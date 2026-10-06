@@ -1,0 +1,3 @@
+# 08 Resiliência e operação
+
+O que acontece quando algo falha, como o sistema é observado e como se opera. Os [cenários de falha](cenarios-de-falha.md) (1 a 8, e [9 a 16](cenarios-de-falha-9-a-16.md)) mostram o comportamento diante de cada falha, e as [políticas de resiliência](politicas-de-resiliencia.md) e os [limites de taxa e de concorrência](limites-de-taxa-e-concorrencia.md) trazem os valores que o produzem. Para observar, há [saúde e observabilidade](saude-e-observabilidade.md), o [catálogo de métricas](catalogo-de-metricas.md) e os [indicadores, objetivos e alertas](slos-e-alertas.md). Para operar, os [procedimentos](runbooks.md) e a conta de [capacidade e escala](capacidade-e-escala.md).
