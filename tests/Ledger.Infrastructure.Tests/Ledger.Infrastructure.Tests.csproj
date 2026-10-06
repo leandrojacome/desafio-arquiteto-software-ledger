@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Ledger.Application\Ledger.Application.csproj" />
+    <ProjectReference Include="..\..\src\Ledger.Domain\Ledger.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Ledger.Infrastructure\Ledger.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <PackageReference Include="NSubstitute" />
+  </ItemGroup>
+
+  <ItemGroup Label="Helpers shared with Ledger.Application.Tests">
+    <Compile Include="..\Ledger.Application.Tests\Support\*.cs" LinkBase="Shared\Support" />
+    <Compile Include="..\Ledger.Application.Tests\Security\FakeKeyProvider.cs" LinkBase="Shared\Security" />
+    <Compile Include="..\Ledger.Application.Tests\Security\SecurityVectors.cs" LinkBase="Shared\Security" />
+    <Compile Include="..\Ledger.Application.Tests\Entries\Support\*.cs" LinkBase="Shared\Entries" />
+    <Compile Include="..\Ledger.Application.Tests\Integrity\FakeIntegritySession.cs" LinkBase="Shared\Integrity" />
+    <Compile Include="..\Ledger.Application.Tests\Integrity\FakeIntegritySessions.cs" LinkBase="Shared\Integrity" />
+  </ItemGroup>
+
+</Project>

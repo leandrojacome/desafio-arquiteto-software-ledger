@@ -1,0 +1,14 @@
+using System.ComponentModel.DataAnnotations;
+
+namespace Ledger.Infrastructure.Health;
+
+internal sealed class WorkerHealthOptions
+{
+    public const string SectionName = "Resilience:Health";
+
+    [Range(10, 3600)] public int OutboxHeartbeatSeconds { get; init; } = 120;
+
+    [Range(1, 1440)] public int IntegrityHeartbeatMinutes { get; init; } = 30;
+
+    [Range(5, 3600)] public int OutboxLagSeconds { get; init; } = 60;
+}
