@@ -22,3 +22,10 @@ internal sealed class RateLimitingOptions
 
     [Range(1, 256)] public int StatementConcurrency { get; init; } = 8;
 }
+
+internal sealed class TokenBucketSettings
+{
+    [Range(1, 1_000_000)] public int Capacity { get; init; } = 100;
+
+    [Range(1, 1_000_000)] public int RefillPerSecond { get; init; } = 50;
+}

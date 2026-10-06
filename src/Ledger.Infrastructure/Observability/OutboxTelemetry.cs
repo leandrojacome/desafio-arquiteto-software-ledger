@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using Ledger.Application.Abstractions;
 using Ledger.Application.Outbox;
-using Ledger.Infrastructure.Observability.Labels;
 
 namespace Ledger.Infrastructure.Observability;
 

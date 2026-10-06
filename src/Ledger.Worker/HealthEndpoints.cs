@@ -3,7 +3,6 @@ using Ledger.Application.Abstractions;
 using Ledger.Infrastructure.Health;
 using Ledger.Infrastructure.Resilience;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 

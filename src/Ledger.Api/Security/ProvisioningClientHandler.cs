@@ -26,3 +26,5 @@ internal sealed class ProvisioningClientHandler(IOptions<ProvisioningOptions> op
                || clients.Contains(clientId, StringComparer.Ordinal);
     }
 }
+
+internal sealed class ProvisioningClientRequirement : IAuthorizationRequirement;

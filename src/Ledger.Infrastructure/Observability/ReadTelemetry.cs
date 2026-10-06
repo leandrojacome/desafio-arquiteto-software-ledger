@@ -28,3 +28,46 @@ internal sealed class ReadTelemetry(TelemetrySources sources, LedgerMeters meter
         return new StatementOperation(activity);
     }
 }
+
+internal sealed class BalanceOperation(
+    LedgerMeters meters,
+    TimeProvider timeProvider,
+    Activity? activity,
+    BalanceMode? mode) : IDisposable
+{
+    private readonly long _startedAt = timeProvider.GetTimestamp();
+    private bool _disposed;
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        if (mode is { } label)
+        {
+            var elapsed = timeProvider.GetElapsedTime(_startedAt);
+
+            meters.BalanceQueryDuration.Record(elapsed.TotalSeconds, new TagList { { TagKeys.Mode, label.Label() } });
+        }
+
+        activity?.Dispose();
+    }
+}
+
+internal sealed class StatementOperation(Activity? activity) : IStatementOperation
+{
+    public void Returned(int count, bool hasNext)
+    {
+        activity?.SetTag(SpanAttributes.StatementReturned, count);
+        activity?.SetTag(SpanAttributes.StatementHasNext, hasNext);
+    }
+
+    public void Dispose()
+    {
+        activity?.Dispose();
+    }
+}

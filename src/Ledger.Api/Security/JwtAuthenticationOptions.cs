@@ -20,3 +20,16 @@ internal sealed class JwtAuthenticationOptions
 
     public LocalKeyOptions LocalKey { get; init; } = new();
 }
+
+internal sealed class LocalKeyOptions
+{
+    public string? SigningKey { get; init; }
+
+    public string? PublicKeyPath { get; init; }
+}
+
+internal enum AuthenticationMode
+{
+    Authority,
+    LocalKey
+}

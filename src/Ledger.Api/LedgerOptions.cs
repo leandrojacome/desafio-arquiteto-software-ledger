@@ -8,3 +8,16 @@ internal sealed class LedgerOptions
 
     [Range(0, 60)] public int OccurredAtFutureToleranceMinutes { get; init; } = 5;
 }
+
+internal static class LedgerOptionsServiceCollectionExtensions
+{
+    public static IServiceCollection AddLedgerOptions(this IServiceCollection services)
+    {
+        services.AddOptions<LedgerOptions>()
+            .BindConfiguration(LedgerOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        return services;
+    }
+}

@@ -22,3 +22,12 @@ internal sealed class PublicKeyLoadResult
 
     public static PublicKeyLoadResult Failure(PublicKeyProblem problem) => new(null, problem);
 }
+
+internal enum PublicKeyProblem
+{
+    None = 0,
+    Unreadable = 1,
+    ContainsPrivateKey = 2,
+    NotAPublicKey = 3,
+    WeakKey = 4
+}

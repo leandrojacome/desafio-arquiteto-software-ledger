@@ -2,7 +2,6 @@ using System.Globalization;
 using Ledger.Api.Health;
 using Ledger.Application.Abstractions;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.AspNetCore.Http.Timeouts;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace Ledger.Api.Endpoints;

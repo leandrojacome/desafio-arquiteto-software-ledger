@@ -16,3 +16,8 @@ internal sealed class ScopeAuthorizationHandler : AuthorizationHandler<ScopeRequ
         return Task.CompletedTask;
     }
 }
+
+internal sealed class ScopeRequirement(string scope) : IAuthorizationRequirement
+{
+    public string Scope { get; } = scope;
+}

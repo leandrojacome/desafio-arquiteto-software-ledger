@@ -20,3 +20,15 @@ public interface IOutboxTelemetry
 
     void BrokerConnected(bool connected);
 }
+
+public interface IOutboxPollOperation : IDisposable
+{
+    void BatchSize(int size);
+}
+
+public interface IOutboxPublishOperation : IDisposable
+{
+    void Confirmed();
+
+    void Failed(PublishFailureReason reason);
+}

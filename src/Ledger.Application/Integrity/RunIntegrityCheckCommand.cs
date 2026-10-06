@@ -36,3 +36,24 @@ public sealed record RunIntegrityCheckCommand
 
     public int HeadBatchSize { get; }
 }
+
+public sealed record IntegrityRunSummary(
+    IntegrityMode Mode,
+    bool Skipped,
+    DateTimeOffset WindowStart,
+    DateTimeOffset WindowEnd,
+    long AccountsChecked,
+    long EntriesChecked,
+    int Violations,
+    bool Partial = false)
+{
+    public static IntegrityRunSummary SkippedRun(IntegrityMode mode) =>
+        new(mode, true, default, default, 0, 0, 0);
+}
+
+public sealed record IntegrityRunRecord(
+    DateTimeOffset RecordedAt,
+    string Outcome,
+    IntegrityMode Mode,
+    DateTimeOffset WindowStart,
+    DateTimeOffset WindowEnd);

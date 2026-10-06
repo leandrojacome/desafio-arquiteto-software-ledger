@@ -19,3 +19,16 @@ internal static class RateLimitingServiceCollectionExtensions
         services.AddSingleton<IConfigureOptions<RateLimiterOptions>, ConfigureRateLimiterOptions>();
     }
 }
+
+internal sealed class ConfigureRateLimiterOptions(RequestLimiters limiters, RateLimitRejectionWriter rejections)
+    : IConfigureOptions<RateLimiterOptions>
+{
+    public void Configure(RateLimiterOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        options.GlobalLimiter = limiters.Chain;
+        options.OnRejected = rejections.WriteAsync;
+    }
+}

@@ -24,3 +24,13 @@ public interface ISecurityTelemetry
 
     void KeyUsageObserved(long accountsBelowActive, bool anomalous);
 }
+
+public interface IAccountCreationOperation : IDisposable
+{
+    void Outcome(string outcome);
+}
+
+public interface IRewrapBatchOperation : IDisposable
+{
+    void Complete(int rewrapped, int failed);
+}

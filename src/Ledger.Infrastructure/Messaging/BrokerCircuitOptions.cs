@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using Ledger.Application.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace Ledger.Infrastructure.Messaging;
 
@@ -13,4 +15,16 @@ internal sealed class BrokerCircuitOptions
     [Range(2, 1000)] public int MinimumThroughput { get; init; } = 10;
 
     [Range(5, 600)] public int BreakSeconds { get; init; } = 30;
+}
+
+internal sealed class BrokerCircuitOptionsValidator : IValidateOptions<BrokerCircuitOptions>
+{
+    public ValidateOptionsResult Validate(string? name, BrokerCircuitOptions options)
+    {
+        var failures = new List<string>();
+
+        OptionsValidation.Collect(options, BrokerCircuitOptions.SectionName, failures);
+
+        return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
+    }
 }
