@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Ledger.Api\Ledger.Api.csproj" />
+    <ProjectReference Include="..\..\src\Ledger.Infrastructure\Ledger.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Ledger.Worker\Ledger.Worker.csproj" Aliases="LedgerWorker" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Testcontainers.RabbitMq" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Invariants\*.sql" />
+  </ItemGroup>
+
+</Project>
