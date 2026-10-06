@@ -1,6 +1,5 @@
 using Ledger.Api.RateLimiting;
 using Ledger.Api.Security;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;

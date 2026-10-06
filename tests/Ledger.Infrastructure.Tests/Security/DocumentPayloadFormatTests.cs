@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using Ledger.Application.Security;
 using Ledger.Application.Tests.Security;
 using Ledger.Infrastructure.Security;
 

@@ -1,7 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Ledger.Api.IntegrationTests.Infrastructure;
 using Ledger.Domain.Accounts;
-using Npgsql;
 
 namespace Ledger.Api.IntegrationTests.Persistence.Support;
 

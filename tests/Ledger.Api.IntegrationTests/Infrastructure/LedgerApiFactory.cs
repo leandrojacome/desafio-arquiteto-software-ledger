@@ -24,3 +24,5 @@ public class LedgerApiFactory : WebApplicationFactory<Program>
         builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(_configuration));
     }
 }
+
+internal sealed class DatabaseLedgerApiFactory(PostgresFixture postgres) : LedgerApiFactory(postgres.Configuration);

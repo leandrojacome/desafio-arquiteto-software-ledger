@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Ledger.Application.Integrity;
 using Ledger.Application.Outbox;
 using Ledger.Domain.Accounts;

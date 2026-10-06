@@ -1,6 +1,5 @@
 using Ledger.Api.IntegrationTests.Infrastructure;
 using Ledger.Application.Abstractions;
-using Ledger.Application.Outbox;
 using Ledger.Infrastructure.Observability;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog.Core;

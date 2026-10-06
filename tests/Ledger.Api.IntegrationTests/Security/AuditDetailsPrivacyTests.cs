@@ -4,7 +4,6 @@ using Ledger.Api.IntegrationTests.Infrastructure;
 using Ledger.Application.Accounts;
 using Ledger.Application.Audit;
 using Ledger.Application.Security;
-using Ledger.Domain.Accounts;
 using Ledger.Infrastructure.Audit;
 using Ledger.Infrastructure.Persistence;
 using Microsoft.Extensions.Logging.Abstractions;

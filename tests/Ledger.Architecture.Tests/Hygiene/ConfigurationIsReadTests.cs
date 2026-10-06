@@ -3,6 +3,8 @@ extern alias LedgerWorker;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Ledger.Architecture.Tests.Layers;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Ledger.Architecture.Tests.Hygiene;
 
@@ -11,7 +13,7 @@ public sealed class ConfigurationIsReadTests
 {
     private const string OptionsSuffix = "Options";
 
-    private static readonly Lazy<IReadOnlyList<(string Path, string Text)>> Sources = new(LoadSources);
+    private static readonly Lazy<IReadOnlyList<(string Path, string TypeName, string Text)>> Sources = new(LoadSources);
 
     public static TheoryData<string, string> OptionProperties()
     {
@@ -47,11 +49,12 @@ public sealed class ConfigurationIsReadTests
         var declaration = new Regex($@"\b(public|internal)\b[^;]*\b{escaped}\s*\{{", RegexOptions.CultureInvariant);
 
         var readers = Sources.Value
-            .Where(source => !IsValidator(source.Path))
-            .Where(source => IsDefinition(source.Path, type)
+            .Where(source => !IsValidator(source.TypeName))
+            .Where(source => IsDefinition(source.TypeName, type)
                 ? ReadsItself(source.Text, mention, declaration)
                 : access.IsMatch(source.Text))
             .Select(source => source.Path)
+            .Distinct(StringComparer.Ordinal)
             .ToList();
 
         readers.ShouldNotBeEmpty($"{typeName}.{propertyName} is bound from configuration but nothing in src reads it");
@@ -76,11 +79,11 @@ public sealed class ConfigurationIsReadTests
             .Any(line => mention.IsMatch(line) && !declaration.IsMatch(line));
     }
 
-    private static bool IsDefinition(string path, Type type) => Path.GetFileName(path) == type.Name + ".cs";
+    private static bool IsDefinition(string typeName, Type type) => typeName == type.Name;
 
-    private static bool IsValidator(string path)
+    private static bool IsValidator(string typeName)
     {
-        return Path.GetFileName(path).EndsWith(OptionsSuffix + "Validator.cs", StringComparison.Ordinal);
+        return typeName.EndsWith(OptionsSuffix + "Validator", StringComparison.Ordinal);
     }
 
     private static List<Type> OptionTypes()
@@ -106,10 +109,33 @@ public sealed class ConfigurationIsReadTests
             .Where(property => property.SetMethod is { IsPublic: true });
     }
 
-    private static List<(string Path, string Text)> LoadSources()
+    private static List<(string Path, string TypeName, string Text)> LoadSources()
     {
-        return SourceFiles.Under("src")
-            .Select(path => (path, File.ReadAllText(path)))
-            .ToList();
+        var sources = new List<(string Path, string TypeName, string Text)>();
+
+        foreach (var path in SourceFiles.Under("src"))
+        {
+            var text = File.ReadAllText(path);
+            var types = CSharpSyntaxTree.ParseText(text).GetRoot()
+                .DescendantNodes(node => node is CompilationUnitSyntax or BaseNamespaceDeclarationSyntax)
+                .OfType<BaseTypeDeclarationSyntax>()
+                .OrderBy(type => type.FullSpan.Start)
+                .ToList();
+
+            var remainder = new System.Text.StringBuilder();
+            var position = 0;
+
+            foreach (var type in types)
+            {
+                remainder.Append(text, position, type.FullSpan.Start - position);
+                position = type.FullSpan.End;
+                sources.Add((path, type.Identifier.ValueText, type.ToFullString()));
+            }
+
+            remainder.Append(text, position, text.Length - position);
+            sources.Add((path, string.Empty, remainder.ToString()));
+        }
+
+        return sources;
     }
 }

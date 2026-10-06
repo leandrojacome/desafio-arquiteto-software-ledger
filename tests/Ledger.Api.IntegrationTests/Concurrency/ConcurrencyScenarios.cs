@@ -1,6 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
 using Ledger.Api.IntegrationTests.Infrastructure;
-using Ledger.Api.IntegrationTests.Persistence.Support;
 using Ledger.Application.Entries;
 using Ledger.Domain.Accounts;
 using Ledger.Domain.Entries;

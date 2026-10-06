@@ -3,10 +3,6 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using Ledger.Api.IntegrationTests.Infrastructure;
 using Ledger.Api.IntegrationTests.Security;
-using Ledger.Api.Security;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 
 namespace Ledger.Api.IntegrationTests.ErrorHandling;
 

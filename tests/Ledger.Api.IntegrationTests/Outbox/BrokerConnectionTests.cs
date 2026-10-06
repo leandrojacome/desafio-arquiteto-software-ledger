@@ -5,7 +5,6 @@ using Ledger.Infrastructure.Messaging;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
-using RabbitMQ.Client;
 
 namespace Ledger.Api.IntegrationTests.Outbox;
 

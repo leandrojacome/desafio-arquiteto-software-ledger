@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text.Json;
 using Ledger.Api.IntegrationTests.Infrastructure;
-using Ledger.Api.IntegrationTests.Observability;
 using Ledger.Application;
 using Ledger.Application.Abstractions;
 using Microsoft.Extensions.DependencyInjection;

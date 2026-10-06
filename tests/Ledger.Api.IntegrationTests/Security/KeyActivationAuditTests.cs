@@ -2,7 +2,6 @@ using Ledger.Api.IntegrationTests.Infrastructure;
 using Ledger.Application.Security;
 using Ledger.Infrastructure.Persistence;
 using Microsoft.Extensions.Logging.Abstractions;
-using Npgsql;
 
 namespace Ledger.Api.IntegrationTests.Security;
 

@@ -1,7 +1,6 @@
 using Ledger.Api.IntegrationTests.Infrastructure;
 using Ledger.Api.IntegrationTests.Persistence.Support;
 using Ledger.Application.Accounts;
-using Ledger.Application.Security;
 using Ledger.Domain.Accounts;
 using Ledger.Domain.Entries;
 using Ledger.Domain.Shared;

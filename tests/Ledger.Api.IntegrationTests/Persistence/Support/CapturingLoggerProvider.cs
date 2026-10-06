@@ -43,3 +43,10 @@ internal sealed class CapturingLoggerProvider : ILoggerProvider
         }
     }
 }
+
+internal sealed record CapturedLogEvent(
+    int EventId,
+    LogLevel Level,
+    string Message,
+    IReadOnlyDictionary<string, object?> Properties,
+    Exception? Exception);

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Ledger.Application;
 using Ledger.Application.Abstractions;
 using Ledger.Application.Accounts;

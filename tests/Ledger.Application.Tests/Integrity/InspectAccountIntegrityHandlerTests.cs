@@ -1,6 +1,5 @@
 using Ledger.Application.Integrity;
 using Ledger.Domain.Accounts;
-using Ledger.Domain.Entries;
 
 namespace Ledger.Application.Tests.Integrity;
 

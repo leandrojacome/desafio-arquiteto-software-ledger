@@ -3,7 +3,6 @@ using Ledger.Api.IntegrationTests.Infrastructure;
 using Ledger.Application.Idempotency;
 using Ledger.Infrastructure.Persistence;
 using Ledger.Infrastructure.Persistence.Outbox;
-using Microsoft.Extensions.Options;
 using Npgsql;
 using NpgsqlTypes;
 

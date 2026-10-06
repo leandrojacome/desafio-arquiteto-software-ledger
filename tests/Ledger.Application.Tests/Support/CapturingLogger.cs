@@ -53,3 +53,42 @@ internal class CapturingLogger : ILogger
 
     public bool Contains(int eventId) => Entries.Any(entry => entry.EventId.Id == eventId);
 }
+
+internal sealed record CapturedLog(
+    LogLevel Level,
+    EventId EventId,
+    string Message,
+    IReadOnlyDictionary<string, string?> Properties);
+
+internal sealed class CapturingLoggerFactory : ILoggerFactory
+{
+    private readonly Dictionary<string, CapturingLogger> _loggers = [];
+
+    public IReadOnlyDictionary<string, CapturingLogger> Loggers => _loggers;
+
+    public CapturingLogger For(string category) => _loggers[category];
+
+    public ILogger CreateLogger(string categoryName)
+    {
+        if (!_loggers.TryGetValue(categoryName, out var logger))
+        {
+            logger = new CapturingLogger();
+            _loggers[categoryName] = logger;
+        }
+
+        return logger;
+    }
+
+    public void AddProvider(ILoggerProvider provider)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+    }
+
+    public void Dispose()
+    {
+    }
+}
+
+internal sealed class CapturingLogger<T> : CapturingLogger, ILogger<T>
+{
+}

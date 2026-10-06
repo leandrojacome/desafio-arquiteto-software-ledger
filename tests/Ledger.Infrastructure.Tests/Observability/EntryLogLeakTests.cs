@@ -2,7 +2,6 @@ using System.Diagnostics;
 using Ledger.Application.Abstractions;
 using Ledger.Application.Entries;
 using Ledger.Application.Tests.Entries.Support;
-using Ledger.Domain.Entries;
 using Ledger.Infrastructure.Observability;
 using Ledger.Infrastructure.Tests.Observability.Support;
 using Microsoft.Extensions.Logging;

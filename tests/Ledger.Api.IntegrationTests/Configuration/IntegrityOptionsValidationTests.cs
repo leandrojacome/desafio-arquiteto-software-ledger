@@ -1,7 +1,6 @@
 extern alias LedgerWorker;
 
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Options;
 using IntegrityOptions = LedgerWorker::Ledger.Worker.IntegrityOptions;
 using IntegrityOptionsValidator = LedgerWorker::Ledger.Worker.IntegrityOptionsValidator;
 

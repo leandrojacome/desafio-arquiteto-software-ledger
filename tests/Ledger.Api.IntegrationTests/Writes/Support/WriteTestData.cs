@@ -3,7 +3,6 @@ using Ledger.Api.IntegrationTests.Persistence.Support;
 using Ledger.Application.Abstractions;
 using Ledger.Domain.Accounts;
 using Ledger.Domain.Shared;
-using Npgsql;
 
 namespace Ledger.Api.IntegrationTests.Writes.Support;
 

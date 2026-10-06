@@ -1,6 +1,5 @@
 using Ledger.Api.IntegrationTests.Infrastructure;
 using Ledger.Application.Integrity;
-using Ledger.Infrastructure.Persistence;
 using Npgsql;
 
 namespace Ledger.Api.IntegrationTests.Integrity;

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Ledger.Application.Integrity;
 using Ledger.Application.Outbox;

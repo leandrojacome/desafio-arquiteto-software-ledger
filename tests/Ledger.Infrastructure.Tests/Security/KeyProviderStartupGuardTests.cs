@@ -3,7 +3,6 @@ using Ledger.Application.Security;
 using Ledger.Application.Tests.Security;
 using Ledger.Application.Tests.Support;
 using Ledger.Domain.Accounts;
-using Ledger.Domain.Shared;
 using Ledger.Infrastructure.Security;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;

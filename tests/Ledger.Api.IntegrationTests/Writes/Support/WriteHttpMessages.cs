@@ -60,3 +60,18 @@ internal sealed class ApiResponse
     public IReadOnlyList<string> HeaderValues(string name) =>
         _headers.TryGetValue(name, out var values) ? values : [];
 }
+
+internal sealed record WriteRequestOptions
+{
+    public string? IdempotencyKey { get; init; }
+
+    public string? Token { get; init; }
+
+    public bool Anonymous { get; init; }
+
+    public string? ContentType { get; init; } = "application/json";
+
+    public string? CorrelationId { get; init; }
+
+    public IReadOnlyList<string> RepeatedIdempotencyKeys { get; init; } = [];
+}

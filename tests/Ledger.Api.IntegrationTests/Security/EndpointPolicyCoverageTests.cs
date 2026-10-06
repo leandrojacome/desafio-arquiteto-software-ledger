@@ -2,7 +2,6 @@ using Ledger.Api.IntegrationTests.Infrastructure;
 using Ledger.Api.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.AspNetCore.Routing.Patterns;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Ledger.Api.IntegrationTests.Security;

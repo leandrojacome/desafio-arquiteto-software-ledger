@@ -4,7 +4,6 @@ using Ledger.Application.Tests.Entries.Support;
 using Ledger.Application.Tests.Support;
 using Ledger.Domain.Accounts;
 using Ledger.Domain.Entries;
-using Ledger.Domain.Shared;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;

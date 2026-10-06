@@ -1,10 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
 using Ledger.Api.IntegrationTests.Infrastructure;
-using Ledger.Api.RateLimiting;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Ledger.Api.IntegrationTests.Security;

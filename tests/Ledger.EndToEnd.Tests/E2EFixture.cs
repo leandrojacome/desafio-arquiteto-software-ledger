@@ -34,3 +34,9 @@ public sealed class E2EFixture : IAsyncLifetime
 
     internal HttpClient CreateClient() => E2EEnvironment.CreateClient(Stack.ApiUrl);
 }
+
+[CollectionDefinition(Name)]
+public sealed class E2ECollectionDefinition : ICollectionFixture<E2EFixture>
+{
+    public const string Name = "ComposeStack";
+}

@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Ledger.Api;
 using Ledger.Domain.Entries;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.DependencyInjection;

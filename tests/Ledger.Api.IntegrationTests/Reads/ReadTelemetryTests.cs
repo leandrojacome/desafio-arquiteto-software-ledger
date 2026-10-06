@@ -3,7 +3,6 @@ using Ledger.Api.IntegrationTests.Infrastructure;
 using Ledger.Api.IntegrationTests.Observability;
 using Ledger.Api.IntegrationTests.Persistence.Support;
 using Microsoft.Extensions.DependencyInjection;
-using OpenTelemetry;
 using OpenTelemetry.Metrics;
 
 namespace Ledger.Api.IntegrationTests.Reads;

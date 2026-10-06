@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text.RegularExpressions;
 using Ledger.Api.IntegrationTests.Infrastructure;
-using Ledger.Api.IntegrationTests.Observability;
 using Ledger.Api.IntegrationTests.Security;
 
 namespace Ledger.Api.IntegrationTests.Correlation;

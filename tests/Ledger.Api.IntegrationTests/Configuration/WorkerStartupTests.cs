@@ -1,7 +1,6 @@
 extern alias LedgerWorker;
 
 using System.Globalization;
-using System.Reflection;
 using Ledger.Api.IntegrationTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

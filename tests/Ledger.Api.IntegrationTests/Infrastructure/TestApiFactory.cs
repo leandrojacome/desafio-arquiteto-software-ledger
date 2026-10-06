@@ -1,5 +1,4 @@
 using Ledger.Api.IntegrationTests.Observability;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;

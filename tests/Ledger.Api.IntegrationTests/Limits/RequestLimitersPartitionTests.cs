@@ -3,7 +3,6 @@ using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Ledger.Api.RateLimiting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Options;
 
 namespace Ledger.Api.IntegrationTests.Limits;

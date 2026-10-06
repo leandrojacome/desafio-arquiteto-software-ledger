@@ -6,7 +6,6 @@ using Ledger.Application.Entries;
 using Ledger.Domain.Accounts;
 using Ledger.Domain.Entries;
 using Ledger.Domain.Shared;
-using Ledger.Infrastructure.Persistence;
 using Npgsql;
 
 namespace Ledger.Api.IntegrationTests.Concurrency;

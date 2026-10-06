@@ -1,4 +1,3 @@
-using Ledger.Application.Abstractions;
 using Ledger.Application.Security;
 using Ledger.Infrastructure.Persistence;
 using Ledger.Infrastructure.Resilience;

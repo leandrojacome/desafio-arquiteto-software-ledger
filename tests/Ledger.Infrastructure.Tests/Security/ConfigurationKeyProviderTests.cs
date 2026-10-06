@@ -1,4 +1,3 @@
-using Ledger.Application.Abstractions;
 using Ledger.Application.Tests.Security;
 using Ledger.Infrastructure.Security;
 using Microsoft.Extensions.Configuration;

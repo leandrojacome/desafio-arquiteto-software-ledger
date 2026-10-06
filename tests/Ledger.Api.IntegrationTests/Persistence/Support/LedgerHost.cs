@@ -3,7 +3,6 @@ using Ledger.Application;
 using Ledger.Application.Abstractions;
 using Ledger.Application.Accounts;
 using Ledger.Application.Entries;
-using Ledger.Application.Security;
 using Ledger.Domain.Accounts;
 using Ledger.Domain.Entries;
 using Ledger.Domain.Shared;
